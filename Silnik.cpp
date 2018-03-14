@@ -8,6 +8,9 @@ sf::Vector2f Silnik::applyThrust(const sf::Vector2f &pos, const sf::Vector2f &ve
 	float F_statek{ 0.0 };
 	sf::Vector2f F_œwiat = { 0.0f, 0.0f };
 
+	if (m_paliwo <= 0.0f)
+		return F_œwiat;
+
 	switch (m_sterowanie)
 	{
 	case Sterowanie::KLAWIATURA:
@@ -32,6 +35,7 @@ sf::Vector2f Silnik::applyThrust(const sf::Vector2f &pos, const sf::Vector2f &ve
 		break;
 	}
 	}
+	m_paliwo -= abs(F_statek);
 
 	createParticle(pos, vel_0, -F_œwiat * 0.015f);
 

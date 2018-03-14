@@ -9,6 +9,7 @@
 
 #include "Fizyczny.h"
 #include "Silnik.h"
+#include "Collidable.h"
 
 using std::shared_ptr;
 using std::weak_ptr;
@@ -17,7 +18,8 @@ using std::weak_ptr;
 class Statek	
 	: virtual public sf::Drawable,		//Mo¿e dziedziczyæ z sf::Transformable?
 	public std::enable_shared_from_this<Statek>,
-	public Fizyczny
+	public Fizyczny,
+	virtual public Collidable
 {
 public:
 	enum class Rodzaj
@@ -87,9 +89,14 @@ public:
 
 	virtual void onCollision(Statek & drugi);
 
-	sf::FloatRect getGlobalBounds() const;
+	virtual sf::FloatRect getGlobalBounds() const override;
 
 	void w³¹czSterowanie(Silnik::Sterowanie sterowanie);
+
+	const Silnik& getSilnik() const
+	{
+		return m_silnik;
+	}
 
 };
 

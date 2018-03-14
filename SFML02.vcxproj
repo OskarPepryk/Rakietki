@@ -159,6 +159,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Collidable.h" />
     <ClInclude Include="Fizyczny.h" />
     <ClInclude Include="f_Różne.h" />
     <ClInclude Include="Gra.h" />

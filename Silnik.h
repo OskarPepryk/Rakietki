@@ -17,9 +17,11 @@ public:
 		AUTO_PROSTO
 	};
 
-protected:
+private:
 	float			m_ci¹g = 10000.0f;
 	float			m_moment = 0.2f;
+	float			m_paliwo{ 1e7f };
+	float			m_paliwoPe³ny{ 1e7 };
 	Sterowanie		m_sterowanie{ Sterowanie::BRAK };
 	Wydech			m_wydech;
 
@@ -57,5 +59,10 @@ public:
 	float getThrustMax() const
 	{
 		return m_ci¹g;
+	}
+
+	float getRemainingFuelRatio() const
+	{
+		return m_paliwo / m_paliwoPe³ny;
 	}
 };
