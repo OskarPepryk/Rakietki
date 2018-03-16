@@ -45,6 +45,11 @@ public:
 		m_moment = torque;
 	}
 
+	void addFuel(float fuel)
+	{
+		m_paliwo = std::clamp(m_paliwo + fuel, 0.0f, m_paliwoPe³ny);
+	}
+
 	Wydech & getExhaust()
 	{
 		return m_wydech;
@@ -54,7 +59,6 @@ public:
 	{
 		return m_wydech;
 	}
-
 
 	float getThrustMax() const
 	{

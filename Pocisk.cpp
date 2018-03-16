@@ -9,7 +9,7 @@ Pocisk::Pocisk(Statek::Rodzaj rodzaj, std::vector<shared_ptr<Statek>> * tablicaS
 	m_vel.x = vel_statku.x + cos(m_alfa) * vel_wylotowa;
 	m_vel.y = vel_statku.y + sin(m_alfa) * vel_wylotowa;
 
-	zmieñStrona(rodzic->getStrona());
+	changeSide(rodzic->getSide());
 	m_maxWiek = { 5.0f };
 	m_DP = 10;
 	m_HP = 1;
@@ -19,24 +19,18 @@ void Pocisk::obliczSi³y()
 {
 	m_F = { 0,0 };
 
-	dodajSi³yOporów();
+	m_F.x -= m_vel.x * abs(m_vel.x) * m_cx;
+	m_F.y -= m_vel.y * abs(m_vel.y) * m_cx;
 }
 
-void Pocisk::dodajSi³êSilnika()
+void Pocisk::changeSide(Strona strona)
 {
-	//m_F.x += cos(m_alfa) * m_ci¹g;
-	//m_F.y += sin(m_alfa) * m_ci¹g;
-}
-
-void Pocisk::zmieñStrona(Strona strona)
-{
-	Statek::zmieñStrona(strona);
+	Statek::changeSide(strona);
 	m_shape.setFillColor(StronaColor[static_cast<int>(strona)]);
 }
 
-void Pocisk::onCollision(Statek & drugi)
+void Pocisk::onCollision(I_Collidable* drugi)
 {
 	m_HP = -1;
-
 	//std::cout << "Pocisk ma " << getHP() << " HP.\n";
 }

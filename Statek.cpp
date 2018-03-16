@@ -16,7 +16,7 @@ Statek::Statek()
 Statek::Statek(std::vector<shared_ptr<Statek>> * tablicaStatków, Statek::Rodzaj rodzaj, shared_ptr<Statek> rodzic) : Statek(tablicaStatków, rodzaj)
 {
 	m_rodzic = rodzic;
-	zmieñStrona(rodzic->getStrona());
+	changeSide(rodzic->getSide());
 
 	m_alfa = rodzic->m_alfa;
 	m_pos = rodzic->m_pos;
@@ -96,8 +96,8 @@ void Statek::ustawFizykê(Statek::Rodzaj rodzaj)
 		m_I = 1.0f;
 		m_silnik.setThrustMax(10000.0f);
 		m_silnik.setTorqueMax(0.2f);
-		m_masa = 100.0f;
-		m_cx = 0.2f;
+		m_masa = 50.0f;
+		m_cx = 0.05f;
 		m_cxm = 0.02f;
 		break;
 	}
@@ -119,28 +119,57 @@ void Statek::ustawFizykê(Statek::Rodzaj rodzaj)
 
 void Statek::obliczMomenty()
 {
+	//Zresetowanie momentu, TODO: usuniêcie zmiennej cz³onkowskiej
 	m_M = 0.0f;
 
+	//Dodanie si³y sterowania silnika
 	m_M += m_silnik.getEngineTorque();
 
-	dodajMomentyOporu();
+	//Dodanie momentu oporu
+	m_M -= m_omega * m_cxm;
 
 }
 
 void Statek::obliczSi³y()
 {
+	//Zresetowanie si³y, TODO: usuniêcie zmiennej cz³onkowskiej
 	m_F = { 0,0 };
 
+	//Dodanie si³y sterowania silnika
 	m_F += m_silnik.applyThrust(m_pos, m_vel, m_alfa);
-
-	dodajSi³yOporów();
+	
+	//Dodanie si³ oporu aerodynamicznego
+	m_F.x -= m_vel.x * abs(m_vel.x) * m_cx;
+	m_F.y -= m_vel.y * abs(m_vel.y) * m_cx;
 
 }
 
-void Statek::obliczPozycjê(const float & czas)
+void Statek::doMove(const float & czas)
 {
-	Fizyczny::obliczPozycjê(czas);
+	obliczSi³y();
 
+	//Translacja
+
+	sf::Vector2f a = m_F / m_masa;
+
+	m_pos.x += 0.5f * m_vel.x * czas;
+	m_pos.y += 0.5f * m_vel.y * czas;
+
+	m_vel += a * czas;
+
+	m_pos.x += 0.5f * m_vel.x * czas;
+	m_pos.y += 0.5f * m_vel.y * czas;
+
+
+	//Rotacja
+	obliczMomenty();
+
+	m_alfa += 0.5f * m_omega * czas;
+	m_omega += m_M / m_I;
+	m_alfa += 0.5f * m_omega * czas;
+
+
+	//Zmiana grafiki
 	m_shape.setPosition(m_pos);
 	m_shape.setRotation(m_alfa * 180.0f / 3.14159f);
 
@@ -167,7 +196,7 @@ void Statek::wystrzelPocisk()
 	m_tablicaStatków->push_back(ptr);
 }
 
-bool Statek::getNieaktualny() const
+bool Statek::isTooOld() const
 {
 	if (m_maxWiek == 0.0f)
 		return false;
@@ -177,12 +206,12 @@ bool Statek::getNieaktualny() const
 		return false;
 }
 
-float Statek::getPrêdkoœæMaksymalna() const
+float Statek::getMaxSpeed() const
 {
 	return sqrt(m_silnik.getThrustMax() / m_cx);
 }
 
-void Statek::zmieñStrona(Strona strona)
+void Statek::changeSide(Strona strona)
 {
 	m_strona = strona;
 	m_color = StronaColor[static_cast<int>(strona)];
@@ -190,7 +219,7 @@ void Statek::zmieñStrona(Strona strona)
 	m_shape.setFillColor(sf::Color::Black);
 }
 
-Strona Statek::getStrona() const
+Strona Statek::getSide() const
 {
 	return m_strona;
 }
@@ -210,12 +239,13 @@ void Statek::addHP(int hp)
 	m_HP += hp;
 }
 
-void Statek::onCollision(Statek & drugi)
+void Statek::onCollision(I_Collidable* drugi)
 {
-	//m_rodzic.lock();
-	addHP( - drugi.getDP());
-
-	//std::cout << "Statek ma " << getHP() << " HP.\n";
+	Statek* drugiStatek = dynamic_cast<Statek*>(drugi);
+	if (drugiStatek)
+	{
+		addHP(-drugiStatek->getDP());
+	}
 }
 
 sf::FloatRect Statek::getGlobalBounds() const

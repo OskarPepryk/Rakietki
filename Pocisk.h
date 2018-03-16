@@ -4,18 +4,15 @@
 
 class Pocisk : public Statek
 {
-private:
-protected:
-
-
 public:
 	Pocisk(Statek::Rodzaj rodzaj, std::vector<shared_ptr<Statek>> * tablicaStatków, shared_ptr<Statek> rodzic, float vel_wylotowa);
 
+	virtual ~Pocisk()
+	{};
+
 	virtual void obliczSi³y() override;
 
-	void dodajSi³êSilnika();
+	virtual void changeSide(Strona strona) override;
 
-	virtual void zmieñStrona(Strona strona) override;
-
-	virtual void onCollision(Statek & drugi) override;
+	virtual void onCollision(I_Collidable* drugi) override;
 };

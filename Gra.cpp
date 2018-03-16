@@ -12,6 +12,7 @@
 #include "Statek.h"
 #include "Siatka.h"
 
+
 using std::vector;
 using std::shared_ptr;
 using std::weak_ptr;
@@ -27,13 +28,15 @@ Gra::Gra()
 
 	sterowanyStatek = ptr;
 	ptr->w³¹czSterowanie(Silnik::Sterowanie::KLAWIATURA);
-	ptr->zmieñStrona(Strona::RED);
+	ptr->changeSide(Strona::RED);
 
 	auto ptr2 = dodajStatek(Statek::Rodzaj::ŒREDNI);
 
 	ptr2->w³¹czSterowanie(Silnik::Sterowanie::BRAK);
-	ptr2->zmieñStrona(Strona::BLU);
+	ptr2->changeSide(Strona::BLU);
 	ptr2->setPosition(sf::Vector2f(100, 100));
+
+	addBonuses(1000);
 
 	dodajSiatkê();
 }
@@ -54,12 +57,8 @@ void Gra::tRysowania()
 
 void Gra::uruchom()
 {
-	/*std::thread t1(&Gra::tRysowania, this);
-	
-	HandleEvents();
 
-
-	t1.join();*/
+	sf::Clock clock;
 
 	while (window.isOpen())
 	{
@@ -90,7 +89,9 @@ void Gra::uruchom()
 		}
 
 		m_gui.odœwie¿(sterowanyStatek);
-		odœwie¿Statki(krokCzasu);
+
+		odœwie¿Statki(clock.restart().asSeconds());
+		removeDeadObjects();
 		odœwie¿Widok();
 
 		window.clear(sf::Color::Black);
@@ -131,9 +132,14 @@ void Gra::drawDrawables()
 		window.draw(*drawable);
 	}
 
-	for (std::shared_ptr<Statek> statek : statki)
+	for (auto & statek : statki)
 	{
 		window.draw(*statek);
+	}
+
+	for (auto & staticObject : staticObjects)
+	{
+		window.draw(*staticObject);
 	}
 }
 
@@ -141,17 +147,9 @@ void Gra::odœwie¿Statki(float czas)
 {
 	obs³u¿Kolizje();
 
-	for (vector<shared_ptr<Statek>>::iterator it = statki.begin(); it!= statki.end();)
+	for (auto & statek : statki)
 	{
-		if ((*it)->getNieaktualny() || (*it)->getHP() < 0)
-		{
-			it = statki.erase(it);
-		}
-		else 
-		{
-			(*it)->obliczPozycjê(czas);
-			it++;
-		}
+		statek->doMove(czas);
 	}
 }
 
@@ -159,6 +157,13 @@ std::shared_ptr<Statek> Gra::dodajStatek(Statek::Rodzaj rodzaj, Strona strona)
 {
 	shared_ptr<Statek> ptr(new Statek(&statki, rodzaj));
 	statki.push_back(ptr);
+	return ptr;
+}
+
+std::shared_ptr<StaticObject> Gra::addStaticObject(StaticObject::Type type, sf::Vector2f position)
+{
+	shared_ptr<StaticObject> ptr(new StaticObject(position, type));
+	staticObjects.push_back(ptr);
 	return ptr;
 }
 
@@ -177,7 +182,7 @@ void Gra::odœwie¿Widok()
 	if (auto sterowany = sterowanyStatek.lock())
 	{
 		œrodek = sterowany->getPosition();
-		prêdkoœæMaksymalna = sterowany->getPrêdkoœæMaksymalna();
+		prêdkoœæMaksymalna = sterowany->getMaxSpeed();
 
 		sf::View view = window.getView();
 
@@ -201,23 +206,85 @@ void Gra::rozmiarOkna(unsigned int w, unsigned int h)
 
 void Gra::obs³u¿Kolizje()
 {
-	//sf::Clock clock;
-	for (vector<shared_ptr<Statek>>::iterator a = statki.begin(); a != statki.end(); a++)
+	static sf::Int64 cumulativeTime{ 0 };
+	static int cycleNumber{ 0 };
+	static sf::Clock clock;
+	clock.restart();
+
+	for (auto a = statki.begin(); a != statki.end(); a++)
 	{
-		for (vector<shared_ptr<Statek>>::iterator b = a + 1; b != statki.end(); b++)
+		//Sprawdzanie kolizji z pozosta³ymi statkami:
+		for (auto b = a + 1; b != statki.end(); b++)
 		{
 			if ((*b) == (*a))
 				continue;
 
-			if ((*a)->getStrona() == (*b)->getStrona())
+			if ((*b)->getSide() == (*a)->getSide())
 				continue;
 
-			if ((*a)->getGlobalBounds().intersects((*b)->getGlobalBounds()))
+			if ((*a) != nullptr and (*b) != nullptr)
 			{
-				(*a)->onCollision(**b);
-				(*b)->onCollision(**a);
+				if ((*a)->getGlobalBounds().intersects((*b)->getGlobalBounds()))
+				{
+					(*a)->onCollision((*b).get());	//Do poprawki - bez get()
+					(*b)->onCollision((*a).get());
+				}
+			}
+		}
+		//Sprawdzanie kolizji ze staticObjects
+
+		for (auto & b : staticObjects)
+		{
+			if ((*a)->getGlobalBounds().intersects(b->getGlobalBounds()))
+			{
+				(*a)->onCollision(static_cast<I_Collidable*>(b.get()));	//Do poprawki - bez get()
+				static_cast<I_Collidable*>(b.get())->onCollision((*a).get());
 			}
 		}
 	}
-	//std::cout << "Cykl kolizji zaj¹³ " << clock.restart().asMicroseconds() << " us.\n";
+
+	cumulativeTime += clock.restart().asMicroseconds();
+
+	if (cycleNumber % 100 == 0)
+	{
+		std::cout << "Cykl kolizji zaj¹³ œrednio " << cumulativeTime/100 << " us.\n";
+		cumulativeTime = 0;
+	}
+
+	cycleNumber++;
+}
+
+void Gra::removeDeadObjects()
+{
+	for (auto it = statki.begin(); it != statki.end();)
+	{
+		if ((*it)->isDead())
+		{
+			it = statki.erase(it);
+		}
+		else
+			it++;
+	}
+
+	for (auto it = staticObjects.begin(); it != staticObjects.end();)
+	{
+		if ((*it)->isDead())
+		{
+			it = staticObjects.erase(it);
+		}
+		else
+			it++;
+	}
+}
+
+void Gra::addBonuses(unsigned int n)
+{
+	for (unsigned int i = 0; i < n; i++)
+	{
+		sf::Vector2f pos{ rand(-wielkoœæMapy,wielkoœæMapy), rand(-wielkoœæMapy,wielkoœæMapy) };
+		if (i % 2 == 0)
+			addStaticObject(StaticObject::Type::FUELPACK, pos);
+		else
+			addStaticObject(StaticObject::Type::HEALTHPACK, pos);
+	}
 }
